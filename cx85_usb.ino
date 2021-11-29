@@ -7,6 +7,9 @@
 // during testing / development
 //#define NOKEYS
 
+// How many ms to hold Enter to change modes
+#define MODE_DELAY 5000
+
 /* Key layout map to hex values
     30    51  52  53   73
     50    41  42  43
@@ -17,6 +20,7 @@
 uint8_t pf;
 uint8_t isKeyDown = 0x0;
 uint8_t obsmode = 0x0;
+unsigned long keyDownMillis=0x0;
 
 /* This code expects to see an Arduino board based on
  * the Atmega 32u4, with the "analog" pins on port F.
@@ -34,19 +38,19 @@ void setup() {
   pinMode(A3, INPUT);
   pinMode(A4, INPUT);
   pinMode(A5, INPUT);
-#ifdef DEBUG
+  #ifdef DEBUG
   Serial.begin(9600);
   Serial.setTimeout(50);
   delay(2000);
-#endif
+  #endif
   Keyboard.begin();
   pf = PINF;
   if ((pf & 0B10000000) == 0x0) {
     //Set mode to OBS
     obsmode = 0x1;
-#ifdef DEBUG
+    #ifdef DEBUG
     Serial.println(F("Enabling OBS mode"));
-#endif
+    #endif
     while ((PINF & 0B10000000) == 0x0) { delay(50); }
   }
 }
@@ -57,11 +61,12 @@ void loop() {
   // Bit 7 goes low whenever a key is pressed
   if ((pf & 0B10000000) == 0x0) {
     if (isKeyDown == 0x0) {
+      keyDownMillis=millis();
       pf &= 0B01110011;
-#ifdef DEBUG
+      #ifdef DEBUG
       Serial.print("0x");
       Serial.println(pf, HEX);
-#endif
+      #endif
       isKeyDown = 0x1;
       if (obsmode) {
         if (pf == 0x70) { send_A_char('a'); }
@@ -81,29 +86,29 @@ void loop() {
         if (pf == 0x53) { send_A_char('9'); }
 
         if (pf == 0x30) { // Escape
-#ifdef DEBUG
+          #ifdef DEBUG
           Serial.println("Esc");
-#endif
+          #endif
           send_A_char(KEY_F5);
         }
 
         if (pf == 0x50) { // No
-#ifdef DEBUG
+          #ifdef DEBUG
           Serial.println("No");
-#endif
+          #endif
           send_A_char(KEY_F6);
         }
 
         if (pf == 0x40) { // Delete
-#ifdef DEBUG
+          #ifdef DEBUG
           Serial.println("Del");
-#endif
+          #endif
           send_A_char(KEY_F7);
         }
         if (pf == 0x60) { // Yes
-#ifdef DEBUG
+          #ifdef DEBUG
           Serial.println("Yes");
-#endif
+          #endif
           send_A_char(KEY_F8);
         }
       
@@ -126,26 +131,38 @@ void loop() {
         if (pf == 0x53) { send_char('9'); }
 
         if (pf == 0x30) { // Escape
-#ifdef DEBUG
+          #ifdef DEBUG
           Serial.println("Esc");
-#endif
+          #endif
           send_char(KEY_ESC);
         }
 
         if (pf == 0x40) { // Delete
-#ifdef DEBUG
+          #ifdef DEBUG
           Serial.println("Del");
-#endif
+          #endif
           send_A_char(KEY_BACKSPACE);
         }
       }
+    } else {
+      // iskeydown not zero
+      if (pf == 0x72 && (millis() - keyDownMillis > MODE_DELAY) ) {
+        #ifdef DEBUG
+        Serial.print(F("Changing key mode to "));
+        if (obsmode) { Serial.println(F("keypad mode")); }
+        else { Serial.println(F("OBS mode")); }
+        #endif
+        if (obsmode ) { obsmode = 0x0; }
+        else { obsmode = 0x1; }
+        keyDownMillis=millis();
+      }
     }
-
+//End iskeydown == 0x0
   } else {
     if (isKeyDown)     {
-#ifdef DEBUG
+      #ifdef DEBUG
       Serial.println(F("Keys up"));
-#endif
+      #endif
       Keyboard.releaseAll();
       isKeyDown = 0x0;
     }
@@ -155,39 +172,39 @@ void loop() {
 
 
 void send_char(char c) {
-#ifdef DEBUG
+  #ifdef DEBUG
   if (c < 128 && c > 32) {
     Serial.println(c);
   }
-#endif
-#ifndef NOKEYS
+  #endif
+  #ifndef NOKEYS
   Keyboard.press(c);
-#endif
+  #endif
 }
 
 void send_CA_char(char c) {
-#ifdef DEBUG
+  #ifdef DEBUG
   if (c < 128 && c > 32) {
     Serial.print("Ctrl-Alt-");
     Serial.println(c);
   }
-#endif
-#ifndef NOKEYS
+  #endif
+  #ifndef NOKEYS
   Keyboard.press(KEY_LEFT_CTRL);
   Keyboard.press(KEY_LEFT_ALT);
   Keyboard.press(c);
-#endif
+  #endif
 }
 
 void send_A_char(char c) {
-#ifdef DEBUG
+  #ifdef DEBUG
   if (c < 128 && c > 32) {
     Serial.print("Alt-");
     Serial.println(c);
   }
-#endif
-#ifndef NOKEYS
+  #endif
+  #ifndef NOKEYS
   Keyboard.press(KEY_LEFT_ALT);
   Keyboard.press(c);
-#endif
+  #endif
 }
